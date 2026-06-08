@@ -3,7 +3,7 @@ import google.generativeai as genai
 import requests, json, uuid
 from datetime import datetime
 
-genai.configure(api_key=st.secrets["AQ.Ab8RN6KBoO5nnmKLjurO1dd9EgRj_P9rJNDzSNrCPoDoqebUQw"])
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 MODEL = genai.GenerativeModel("gemini-1.5-flash")
 APPSCRIPT_URL = st.secrets["https://script.google.com/macros/s/AKfycbwTnJ-G_PC6EzaznnJ-cs2YFX5h-WG2BuDKL8kCcX7wQdi2OoTyB6eK_XnoPIjtjiI/exec"]
 
