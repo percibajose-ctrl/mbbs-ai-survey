@@ -4,7 +4,7 @@ import requests, json, uuid
 from datetime import datetime
 
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-MODEL = genai.GenerativeModel("gemini-1.5-flash")
+MODEL = genai.GenerativeModel("gemini-2.0-flash")
 APPSCRIPT_URL = st.secrets["APPSCRIPT_URL"]
 
 TOPICS = {
@@ -43,32 +43,32 @@ CT_ITEMS = [
     "I cross-check AI-generated notes with a standard textbook before trusting them.",
     "When AI gives an answer that contradicts my teacher, I assume the teacher is correct.",
     "I can usually identify factual errors in AI-generated medical content.",
-    "I prefer AI notes over textbooks because they save time.",                # reverse-scored
+    "I prefer AI notes over textbooks because they save time.",
     "I evaluate the reasoning behind an answer, not just the final answer.",
 ]
-CT_REVERSE = [3]  # index of reverse-scored item
+CT_REVERSE = [3]
 
 RSPQ = [
-    "I find that studying sometimes gives me a feeling of deep personal satisfaction.",       #0 deep
-    "I have to work a topic until I form my own conclusions before I am satisfied.",          #1 deep
-    "My aim is to pass the course while doing as little work as possible.",                   #2 surface
-    "I only study seriously what is given out in class or in the course outline.",            #3 surface
-    "I feel that virtually any topic can be highly interesting once I get into it.",          #4 deep
-    "I find most new topics interesting and spend extra time getting more information.",      #5 deep
-    "I do not find my course interesting so I keep my work to the minimum.",                  #6 surface
-    "I learn things by rote, going over them until I know them by heart even if I don't understand.", #7 surface
-    "I find that studying academic topics can at times be as exciting as a good novel or movie.",     #8 deep
-    "I test myself on important topics until I understand them completely.",                  #9 deep
-    "I can get by in most assessments by memorizing key sections rather than understanding.", #10 surface
-    "I generally restrict my study to what is specifically set, as extra work is unnecessary.",#11 surface
-    "I work hard at my studies because I find the material interesting.",                     #12 deep
-    "I spend free time finding out more about interesting topics discussed in classes.",      #13 deep
-    "I find the best way to pass exams is to remember answers to likely questions.",          #14 surface
-    "I find it is not helpful to study topics in depth; it just confuses and wastes time.",   #15 surface
-    "I come to most classes with questions I want answered.",                                 #16 deep
-    "I make a point of looking at most of the suggested readings for lectures.",              #17 deep
-    "I see little point in learning material that is not likely to be in the exam.",          #18 surface
-    "I find it best to memorize the textbook definition even if I don't fully grasp it.",     #19 surface
+    "I find that studying sometimes gives me a feeling of deep personal satisfaction.",
+    "I have to work a topic until I form my own conclusions before I am satisfied.",
+    "My aim is to pass the course while doing as little work as possible.",
+    "I only study seriously what is given out in class or in the course outline.",
+    "I feel that virtually any topic can be highly interesting once I get into it.",
+    "I find most new topics interesting and spend extra time getting more information.",
+    "I do not find my course interesting so I keep my work to the minimum.",
+    "I learn things by rote, going over them until I know them by heart even if I don't understand.",
+    "I find that studying academic topics can at times be as exciting as a good novel or movie.",
+    "I test myself on important topics until I understand them completely.",
+    "I can get by in most assessments by memorizing key sections rather than understanding.",
+    "I generally restrict my study to what is specifically set, as extra work is unnecessary.",
+    "I work hard at my studies because I find the material interesting.",
+    "I spend free time finding out more about interesting topics discussed in classes.",
+    "I find the best way to pass exams is to remember answers to likely questions.",
+    "I find it is not helpful to study topics in depth; it just confuses and wastes time.",
+    "I come to most classes with questions I want answered.",
+    "I make a point of looking at most of the suggested readings for lectures.",
+    "I see little point in learning material that is not likely to be in the exam.",
+    "I find it best to memorize the textbook definition even if I don't fully grasp it.",
 ]
 DEEP_IDX = [0,1,4,5,8,9,12,13,16,17]
 SURFACE_IDX = [2,3,6,7,10,11,14,15,18,19]
@@ -110,7 +110,7 @@ Rules:
 def get_questions(year, subject, topic):
     key = f"{year}|{subject}|{topic}"
     cached = appscript({"action":"get_cache","key":key})
-    if cached.get("found"):
+    if isinstance(cached, dict) and cached.get("found"):
         try:
             return json.loads(cached["data"])
         except Exception:
@@ -122,7 +122,8 @@ def get_questions(year, subject, topic):
             data = json.loads(text)
             appscript({"action":"save_cache","key":key,"data":json.dumps(data)})
             return data
-        except Exception:
+        except Exception as e:
+            ss["gen_error"] = str(e)
             continue
     return None
 
@@ -139,7 +140,6 @@ if "step" not in ss:
 
 st.title("AI Notes & Learning — MBBS Research Survey")
 
-# ---------- CONSENT ----------
 if ss.step == "consent":
     st.write("This survey studies how AI-generated study notes relate to clinical reasoning, "
              "memory and critical thinking among MBBS students. It takes about 10–15 minutes. "
@@ -148,7 +148,6 @@ if ss.step == "consent":
         if st.button("Start"):
             ss.step = "demo"; st.rerun()
 
-# ---------- DEMOGRAPHICS ----------
 elif ss.step == "demo":
     st.subheader("About you")
     age = st.number_input("Age", 17, 40, 20)
@@ -165,7 +164,6 @@ elif ss.step == "demo":
                    "hours":hours,"freq":freq,"tools":", ".join(tools)}
         ss.step = "topic"; st.rerun()
 
-# ---------- TOPIC LOOP ----------
 elif ss.step == "topic":
     year = ss.demo["year"]
     st.subheader(f"Topic {len(ss.rows)+1}")
@@ -188,7 +186,8 @@ elif ss.step == "topic":
                 ss.q = get_questions(year, subject, topic)
             ss.meta = {"subject":subject,"topic":topic,"recency":recency,"pct":pct,"cross":cross}
             if ss.q is None:
-                st.error("Could not generate questions. Click the button again.")
+                st.error("Could not generate questions.")
+                st.code(ss.get("gen_error", "no error captured"))
 
     if ss.q:
         q = ss.q
@@ -214,7 +213,6 @@ elif ss.step == "topic":
             ss.q = None
             ss.step = "more"; st.rerun()
 
-# ---------- ANOTHER TOPIC? ----------
 elif ss.step == "more":
     st.success(f"Saved. You have completed {len(ss.rows)} topic(s).")
     c1, c2 = st.columns(2)
@@ -223,7 +221,6 @@ elif ss.step == "more":
     if c2.button("Finish — go to final questions"):
         ss.step = "scales"; st.rerun()
 
-# ---------- FINAL SCALES ----------
 elif ss.step == "scales":
     st.subheader("Final section — your study habits")
     st.markdown("**Part 1: rate your agreement**")
@@ -246,7 +243,6 @@ elif ss.step == "scales":
                 appscript({"action":"save_response","row":row})
         ss.step = "done"; st.rerun()
 
-# ---------- DONE ----------
 elif ss.step == "done":
     st.balloons()
     st.success("Thank you! Your responses have been recorded.")
