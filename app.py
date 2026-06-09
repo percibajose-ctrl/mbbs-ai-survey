@@ -4,7 +4,7 @@ import requests, json, uuid
 from datetime import datetime
 
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-MODEL = genai.GenerativeModel("gemini-2.0-flash")
+MODEL = genai.GenerativeModel("gemini-2.0-flash-lite")
 APPSCRIPT_URL = st.secrets["APPSCRIPT_URL"]
 
 TOPICS = {
